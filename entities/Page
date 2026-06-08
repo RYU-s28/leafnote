@@ -1,0 +1,40 @@
+{
+  "name": "Page",
+  "type": "object",
+  "properties": {
+    "notebook_id": {
+      "type": "string",
+      "description": "ID of parent notebook"
+    },
+    "title": {
+      "type": "string",
+      "description": "Page title"
+    },
+    "page_order": {
+      "type": "number",
+      "default": 0,
+      "description": "Order within notebook"
+    },
+    "template": {
+      "type": "string",
+      "enum": [
+        "blank",
+        "lined",
+        "grid",
+        "dotted"
+      ],
+      "default": "blank"
+    },
+    "strokes_data": {
+      "type": "string",
+      "description": "JSON string of all strokes on this page"
+    },
+    "text_boxes_data": {
+      "type": "string",
+      "description": "JSON string of text boxes on this page"
+    }
+  },
+  "required": [
+    "notebook_id"
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "name": "Notebook",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Notebook title"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Subject or category"
+    },
+    "cover_type": {
+      "type": "string",
+      "enum": [
+        "solid",
+        "gradient",
+        "pattern"
+      ],
+      "default": "solid",
+      "description": "Type of cover"
+    },
+    "cover_color1": {
+      "type": "string",
+      "description": "Primary cover color hex"
+    },
+    "cover_color2": {
+      "type": "string",
+      "description": "Secondary cover color hex (for gradient)"
+    },
+    "cover_pattern": {
+      "type": "string",
+      "enum": [
+        "none",
+        "grid",
+        "dots",
+        "lines",
+        "waves"
+      ],
+      "default": "none"
+    },
+    "cover_icon": {
+      "type": "string",
+      "description": "Emoji or icon for cover"
+    },
+    "is_favorite": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_trashed": {
+      "type": "boolean",
+      "default": false
+    },
+    "page_count": {
+      "type": "number",
+      "default": 0
+    },
+    "default_template": {
+      "type": "string",
+      "enum": [
+        "blank",
+        "lined",
+        "grid",
+        "dotted"
+      ],
+      "default": "blank"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
