@@ -15,10 +15,20 @@ import { readDb, updateDb } from "./db.js";
 const app = express();
 const PORT = Number(process.env.PORT || 8787);
 
-const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+const defaultAllowedOrigins = [
+  "http://localhost:5173",
+  "https://ryu-s28.github.io",
+];
+
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
   .split(",")
   .map((item) => item.trim())
   .filter(Boolean);
+
+const allowedOrigins = Array.from(new Set([
+  ...defaultAllowedOrigins,
+  ...configuredOrigins,
+]));
 
 app.use(cors({
   origin(origin, callback) {
