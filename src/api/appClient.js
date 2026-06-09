@@ -2,7 +2,10 @@ const AUTH_USER_KEY = 'leafnote_auth_user';
 const AUTH_TOKEN_KEY = 'leafnote_auth_token';
 
 const isBrowser = typeof window !== 'undefined';
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+const runtimeDefaultApiBase = isBrowser && window.location.hostname.endsWith('github.io')
+  ? 'https://leafnote-ht0v.onrender.com/api'
+  : '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || runtimeDefaultApiBase).replace(/\/$/, '');
 
 const parseJsonSafe = async (response) => {
   if (response.status === 204) return null;
