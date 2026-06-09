@@ -29,3 +29,6 @@ dist-ssr
 
 .env
 .vite
+*.json
+*firebase-adminsdk*.json
+serviceAccountKey.json
