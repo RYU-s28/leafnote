@@ -13,19 +13,37 @@ const AUTH_USER_KEY = 'leafnote_auth_user';
 const GOOGLE_ACCESS_TOKEN_KEY = 'leafnote_google_access_token';
 
 const isBrowser = typeof window !== 'undefined';
+const HOSTED_API_BASE_URL = 'https://leafnote-ht0v.onrender.com/api';
 const runtimeDefaultApiBase = isBrowser && window.location.hostname.endsWith('github.io')
-  ? 'https://leafnote-ht0v.onrender.com/api'
+  ? HOSTED_API_BASE_URL
   : '/api';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || runtimeDefaultApiBase).replace(/\/$/, '');
 const LOCAL_API_BASE_URL = 'http://localhost:8787/api';
 
 const getApiBaseCandidates = () => {
   if (!isBrowser) return [API_BASE_URL];
-  if (API_BASE_URL !== '/api') return [API_BASE_URL];
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return [API_BASE_URL];
+
+  const hostname = window.location.hostname;
+  const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const isGitHubPages = hostname.endsWith('github.io');
+  const candidates = [API_BASE_URL];
+
+  // Local development may use Vite proxy; direct backend fallback avoids proxy/setup issues.
+  if (isLocalHost && API_BASE_URL === '/api') {
+    candidates.push(LOCAL_API_BASE_URL);
   }
-  return [API_BASE_URL, LOCAL_API_BASE_URL];
+
+  // If deployed app was built with localhost API by mistake, recover via hosted fallback.
+  if (!isLocalHost && API_BASE_URL.includes('localhost')) {
+    candidates.push(HOSTED_API_BASE_URL);
+  }
+
+  // GitHub Pages should always have a hosted API fallback.
+  if (isGitHubPages) {
+    candidates.push(HOSTED_API_BASE_URL);
+  }
+
+  return Array.from(new Set(candidates.map((item) => item.replace(/\/$/, ''))));
 };
 
 const parseJsonSafe = async (response) => {
