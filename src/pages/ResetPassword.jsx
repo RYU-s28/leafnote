@@ -47,7 +47,7 @@ export default function ResetPassword() {
         }
       >
         <p className="text-sm text-foreground text-center">
-          The link you used appears to be incomplete. Please request a new password reset email.
+          Firebase password reset links open outside this screen. Request a new email if needed.
         </p>
       </AuthLayout>
     );
@@ -64,6 +64,9 @@ export default function ResetPassword() {
           {error}
         </div>
       )}
+      <p className="text-sm text-muted-foreground text-center mb-4">
+        This route is kept for compatibility. Firebase completes password resets from the email action link.
+      </p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="password">New Password</Label>

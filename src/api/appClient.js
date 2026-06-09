@@ -1,5 +1,16 @@
+import {
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithPopup,
+  signOut,
+  updateProfile,
+} from 'firebase/auth';
+import { firebaseAuth, firebaseConfigured, googleProvider } from '@/lib/firebase';
+
 const AUTH_USER_KEY = 'leafnote_auth_user';
-const AUTH_TOKEN_KEY = 'leafnote_auth_token';
+const GOOGLE_ACCESS_TOKEN_KEY = 'leafnote_google_access_token';
 
 const isBrowser = typeof window !== 'undefined';
 const runtimeDefaultApiBase = isBrowser && window.location.hostname.endsWith('github.io')
@@ -18,20 +29,6 @@ const parseJsonSafe = async (response) => {
   }
 };
 
-const getToken = () => {
-  if (!isBrowser) return null;
-  return window.localStorage.getItem(AUTH_TOKEN_KEY);
-};
-
-const setToken = (token) => {
-  if (!isBrowser) return;
-  if (token) {
-    window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-  } else {
-    window.localStorage.removeItem(AUTH_TOKEN_KEY);
-  }
-};
-
 const setUser = (user) => {
   if (!isBrowser) return;
   if (user) {
@@ -41,24 +38,70 @@ const setUser = (user) => {
   }
 };
 
+const getGoogleAccessToken = () => {
+  if (!isBrowser) return null;
+  return window.localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+};
+
+const setGoogleAccessToken = (token) => {
+  if (!isBrowser) return;
+  if (token) {
+    window.localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, token);
+  } else {
+    window.localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+  }
+};
+
 const toError = (message, status) => {
   const error = new Error(message || 'Request failed');
   error.status = status;
   return error;
 };
 
+const requireFirebase = () => {
+  if (!firebaseConfigured || !firebaseAuth) {
+    throw toError('Firebase web config is missing. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, and VITE_FIREBASE_PROJECT_ID.');
+  }
+};
+
+const waitForAuthReady = async () => {
+  requireFirebase();
+  if (typeof firebaseAuth.authStateReady === 'function') {
+    await firebaseAuth.authStateReady();
+    return;
+  }
+
+  await new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, () => {
+      unsubscribe();
+      resolve();
+    });
+  });
+};
+
+const getFirebaseIdToken = async () => {
+  requireFirebase();
+  await waitForAuthReady();
+  if (!firebaseAuth.currentUser) return null;
+  return firebaseAuth.currentUser.getIdToken();
+};
+
 const apiRequest = async (path, options = {}) => {
-  const { method = 'GET', body, auth = true } = options;
-  const headers = { Accept: 'application/json' };
+  const { method = 'GET', body, auth = true, headers: extraHeaders = {} } = options;
+  const headers = { Accept: 'application/json', ...extraHeaders };
 
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
   }
 
   if (auth) {
-    const token = getToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
+    const idToken = await getFirebaseIdToken();
+    if (idToken) {
+      headers.Authorization = `Bearer ${idToken}`;
+    }
+    const googleAccessToken = getGoogleAccessToken();
+    if (googleAccessToken) {
+      headers['X-Google-Access-Token'] = googleAccessToken;
     }
   }
 
@@ -80,70 +123,77 @@ const apiRequest = async (path, options = {}) => {
   return data;
 };
 
-const auth = {
+const syncSession = async (provider = 'firebase') => {
+  const result = await apiRequest('/auth/session', {
+    method: 'POST',
+    body: { provider, appVersion: 'drive-v1' },
+  });
+  const user = result?.user || result;
+  if (user) setUser(user);
+  return user;
+};
+
+const authApi = {
   me: async () => {
+    await waitForAuthReady();
+    if (!firebaseAuth.currentUser) {
+      throw toError('Not authenticated', 401);
+    }
     const user = await apiRequest('/auth/me');
     setUser(user);
     return user;
   },
 
-  loginViaEmailPassword: async (email, password) => {
-    const result = await apiRequest('/auth/login', {
-      method: 'POST',
-      auth: false,
-      body: { email, password },
-    });
-    if (result?.access_token) setToken(result.access_token);
-    if (result?.user) setUser(result.user);
-    return result?.user;
+  loginViaEmailPassword: async () => {
+    throw toError('LeafNote now stores notebooks in your Google Drive. Sign in with Google to continue.', 400);
   },
 
   loginWithProvider: async (provider, redirectPath = '/') => {
-    const result = await apiRequest('/auth/provider', {
-      method: 'POST',
-      auth: false,
-      body: { provider },
-    });
-    if (result?.access_token) setToken(result.access_token);
-    if (result?.user) setUser(result.user);
+    requireFirebase();
+    if (provider !== 'google' || !googleProvider) {
+      throw toError('Only Google sign-in is supported in the Drive-backed architecture.', 400);
+    }
+
+    const result = await signInWithPopup(firebaseAuth, googleProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    setGoogleAccessToken(credential?.accessToken || null);
+    await syncSession('google.com');
+
     if (isBrowser) {
       window.location.href = redirectPath;
     }
   },
 
-  register: async ({ email, password }) => apiRequest('/auth/register', {
-    method: 'POST',
-    auth: false,
-    body: { email, password },
-  }),
-
-  verifyOtp: async ({ email, otpCode }) => apiRequest('/auth/verify-otp', {
-    method: 'POST',
-    auth: false,
-    body: { email, otpCode },
-  }),
-
-  setToken: (token) => {
-    setToken(token);
+  register: async ({ email, password, displayName }) => {
+    requireFirebase();
+    const result = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+    if (displayName) {
+      await updateProfile(result.user, { displayName });
+    }
+    return syncSession('password');
   },
 
-  resendOtp: async (email) => apiRequest('/auth/resend-otp', {
-    method: 'POST',
-    auth: false,
-    body: { email },
-  }),
+  verifyOtp: async () => {
+    throw toError('Email OTP verification has been removed. Use Firebase Auth instead.', 410);
+  },
 
-  resetPasswordRequest: async (email) => apiRequest('/auth/reset-password-request', {
-    method: 'POST',
-    auth: false,
-    body: { email },
-  }),
+  setToken: () => {
+    throw toError('Manual token injection is no longer supported.', 410);
+  },
 
-  resetPassword: async ({ resetToken, newPassword }) => apiRequest('/auth/reset-password', {
-    method: 'POST',
-    auth: false,
-    body: { resetToken, newPassword },
-  }),
+  resendOtp: async () => {
+    throw toError('Email OTP verification has been removed. Use Firebase Auth instead.', 410);
+  },
+
+  resetPasswordRequest: async (email) => {
+    requireFirebase();
+    await sendPasswordResetEmail(firebaseAuth, email);
+    return { ok: true };
+  },
+
+  resetPassword: async () => {
+    throw toError('Password resets are handled by Firebase email links. Open the reset link from your email to finish the flow.', 410);
+  },
 
   logout: async (redirectUrl) => {
     try {
@@ -151,7 +201,10 @@ const auth = {
     } catch {
       // Ignore logout network errors and clear local session anyway.
     }
-    setToken(null);
+    if (firebaseAuth) {
+      await signOut(firebaseAuth).catch(() => null);
+    }
+    setGoogleAccessToken(null);
     setUser(null);
     if (isBrowser && redirectUrl) {
       window.location.href = redirectUrl;
@@ -171,7 +224,8 @@ const entities = {
 
     filter: async (filter) => {
       if (filter?.id) {
-        return apiRequest(`/notebooks/${encodeURIComponent(filter.id)}`);
+        const notebook = await apiRequest(`/notebooks/${encodeURIComponent(filter.id)}`);
+        return Array.isArray(notebook) ? notebook : notebook ? [notebook] : [];
       }
       return apiRequest('/notebooks');
     },
@@ -214,4 +268,4 @@ const entities = {
   },
 };
 
-export const appClient = { auth, entities };
+export const appClient = { auth: authApi, entities };
