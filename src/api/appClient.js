@@ -17,6 +17,16 @@ const runtimeDefaultApiBase = isBrowser && window.location.hostname.endsWith('gi
   ? 'https://leafnote-ht0v.onrender.com/api'
   : '/api';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || runtimeDefaultApiBase).replace(/\/$/, '');
+const LOCAL_API_BASE_URL = 'http://localhost:8787/api';
+
+const getApiBaseCandidates = () => {
+  if (!isBrowser) return [API_BASE_URL];
+  if (API_BASE_URL !== '/api') return [API_BASE_URL];
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return [API_BASE_URL];
+  }
+  return [API_BASE_URL, LOCAL_API_BASE_URL];
+};
 
 const parseJsonSafe = async (response) => {
   if (response.status === 204) return null;
@@ -105,15 +115,26 @@ const apiRequest = async (path, options = {}) => {
     }
   }
 
+  const apiBases = getApiBaseCandidates();
   let response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  } catch {
-    throw toError('Cannot reach backend API. Start the server or set VITE_API_BASE_URL.');
+  let lastNetworkError = null;
+
+  for (const apiBase of apiBases) {
+    try {
+      response = await fetch(`${apiBase}${path}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+      lastNetworkError = null;
+      break;
+    } catch (error) {
+      lastNetworkError = error;
+    }
+  }
+
+  if (!response) {
+    throw toError('Cannot reach backend API. Start the server or set VITE_API_BASE_URL.', lastNetworkError?.status);
   }
 
   const data = await parseJsonSafe(response);
