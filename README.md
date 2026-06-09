@@ -5,7 +5,7 @@ Leafnote is a Vite + React notes app with a Node.js backend API.
 ## Tech Stack
 
 - Frontend: React 18, Vite 6, Tailwind CSS, TanStack Query
-- Backend: Express 4, JSON file persistence
+- Backend: Express 4, Firebase Firestore
 
 ## Local Development
 
@@ -66,6 +66,16 @@ Copy `.env.example` to `.env` if needed.
 - `CORS_ORIGIN` (backend):
 	- Comma-separated allow-list for browser origins
 	- Local example: `http://localhost:5173`
+
+- `FIREBASE_PROJECT_ID` (backend):
+	- Your Firebase project ID
+
+- `FIREBASE_SERVICE_ACCOUNT_JSON` (backend):
+	- Firebase service account JSON (raw JSON string or base64-encoded JSON)
+
+- `FIREBASE_COLLECTION` and `FIREBASE_DOC_ID` (backend):
+	- Optional overrides for where app state is stored in Firestore
+	- Defaults: `leafnote` and `main`
 
 ## Deploy Backend on Render
 

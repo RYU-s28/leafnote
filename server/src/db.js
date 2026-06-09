@@ -1,5 +1,6 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { Buffer } from "node:buffer";
+import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
 const DEFAULT_DB = {
   users: [],
@@ -10,40 +11,70 @@ const DEFAULT_DB = {
   passwordResets: [],
 };
 
-const DB_FILE = process.env.DB_FILE || path.join(process.cwd(), "server", "data", "db.json");
+const FIREBASE_COLLECTION = process.env.FIREBASE_COLLECTION || "leafnote";
+const FIREBASE_DOC_ID = process.env.FIREBASE_DOC_ID || "main";
 
-let writeQueue = Promise.resolve();
+const parseServiceAccount = () => {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
 
-const ensureDbFile = async () => {
-  await fs.mkdir(path.dirname(DB_FILE), { recursive: true });
   try {
-    await fs.access(DB_FILE);
+    return JSON.parse(raw);
   } catch {
-    await fs.writeFile(DB_FILE, JSON.stringify(DEFAULT_DB, null, 2), "utf8");
+    try {
+      return JSON.parse(Buffer.from(raw, "base64").toString("utf8"));
+    } catch {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON must be valid JSON or base64-encoded JSON");
+    }
   }
 };
 
-export const readDb = async () => {
-  await ensureDbFile();
-  const raw = await fs.readFile(DB_FILE, "utf8");
-  const parsed = JSON.parse(raw || "{}");
-  return {
-    ...DEFAULT_DB,
-    ...parsed,
-  };
-};
+const ensureFirebaseApp = () => {
+  const existing = getApps()[0];
+  if (existing) return existing;
 
-const writeDb = async (data) => {
-  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), "utf8");
-};
+  const serviceAccount = parseServiceAccount();
+  const projectId = process.env.FIREBASE_PROJECT_ID;
 
-export const updateDb = async (updater) => {
-  writeQueue = writeQueue.then(async () => {
-    const db = await readDb();
-    const next = await updater(db);
-    await writeDb(next || db);
-    return next || db;
+  if (serviceAccount) {
+    return initializeApp({
+      credential: cert(serviceAccount),
+      projectId: projectId || serviceAccount.project_id,
+    });
+  }
+
+  return initializeApp({
+    credential: applicationDefault(),
+    projectId,
   });
-
-  return writeQueue;
 };
+
+const firestore = getFirestore(ensureFirebaseApp());
+const stateRef = firestore.collection(FIREBASE_COLLECTION).doc(FIREBASE_DOC_ID);
+
+const normalizeDb = (data) => ({
+  ...DEFAULT_DB,
+  ...(data || {}),
+});
+
+const cloneDb = (data) => JSON.parse(JSON.stringify(data));
+
+export const readDb = async () => {
+  const snapshot = await stateRef.get();
+  if (!snapshot.exists) {
+    const initial = cloneDb(DEFAULT_DB);
+    await stateRef.set(initial, { merge: false });
+    return initial;
+  }
+  return normalizeDb(snapshot.data());
+};
+
+export const updateDb = async (updater) => firestore.runTransaction(async (transaction) => {
+  const snapshot = await transaction.get(stateRef);
+  const current = snapshot.exists ? normalizeDb(snapshot.data()) : cloneDb(DEFAULT_DB);
+  const draft = cloneDb(current);
+  const next = await updater(draft);
+  const finalData = normalizeDb(next || draft);
+  transaction.set(stateRef, finalData, { merge: false });
+  return finalData;
+});
