@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/api/appClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AppSidebar from '@/components/layout/AppSidebar';
 import NotebookCard from '@/components/notebook/NotebookCard';
@@ -15,11 +15,11 @@ export default function Library() {
 
   const { data: notebooks = [], isLoading } = useQuery({
     queryKey: ['notebooks'],
-    queryFn: () => base44.entities.Notebook.list('-updated_date'),
+    queryFn: () => appClient.entities.Notebook.list('-updated_date'),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Notebook.create(data),
+    mutationFn: (data) => appClient.entities.Notebook.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notebooks'] });
       setShowCreate(false);
@@ -27,12 +27,12 @@ export default function Library() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Notebook.update(id, data),
+    mutationFn: ({ id, data }) => appClient.entities.Notebook.update(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notebooks'] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Notebook.delete(id),
+    mutationFn: (id) => appClient.entities.Notebook.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notebooks'] }),
   });
 

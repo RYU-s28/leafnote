@@ -1,38 +1,106 @@
-# leafnote
+# Leafnote
 
+Leafnote is a Vite + React notes app with a Node.js backend API.
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+## Tech Stack
 
-This project contains everything you need to run your app locally.
+- Frontend: React 18, Vite 6, Tailwind CSS, TanStack Query
+- Backend: Express 4, JSON file persistence
 
-**Edit the code in your local development environment**
+## Local Development
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+### Prerequisites
 
-**Prerequisites:** 
+- Node.js 18+
+- npm
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+### Install
 
-```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+```bash
+npm install
 ```
 
-Run the app: `npm run dev`
+### Run backend API
 
-**Publish your changes**
+```bash
+npm run server:dev
+```
 
-Open [Base44.com](http://Base44.com) and click on Publish.
+Backend runs at:
 
-**Docs & Support**
+```text
+http://localhost:8787
+```
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+Health check:
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+```text
+http://localhost:8787/api/health
+```
+
+### Run frontend app
+
+In a second terminal:
+
+```bash
+npm run dev
+```
+
+Frontend runs at:
+
+```text
+http://localhost:5173
+```
+
+The frontend proxies `/api/*` requests to `http://localhost:8787` in development.
+
+## Environment Variables
+
+Copy `.env.example` to `.env` if needed.
+
+- `VITE_API_BASE_URL`:
+	- Optional for local development (proxy handles it)
+	- Required for deployed frontend if backend is on another domain
+	- Example: `https://leafnote-backend.onrender.com/api`
+
+- `CORS_ORIGIN` (backend):
+	- Comma-separated allow-list for browser origins
+	- Local example: `http://localhost:5173`
+
+## Deploy Backend on Render
+
+This repo includes `render.yaml` for the backend web service.
+
+### Option A: Blueprint deploy (recommended)
+
+1. Push this repository to GitHub.
+2. In Render, create a Blueprint from the repo.
+3. Render reads `render.yaml` and creates `leafnote-backend`.
+4. Set `CORS_ORIGIN` in Render to your frontend URL.
+
+### Option B: Manual web service
+
+Use these settings in Render:
+
+- Environment: `Node`
+- Build command: `npm install`
+- Start command: `npm run server`
+
+Then set env var:
+
+- `CORS_ORIGIN=https://your-frontend-domain.com`
+
+## Frontend + Backend Hosting
+
+If frontend is hosted on Render Static Site, set:
+
+- `VITE_API_BASE_URL=https://leafnote-backend.onrender.com/api`
+
+If frontend is hosted elsewhere (for example GitHub Pages), use the same pattern with your backend URL.
+
+## Build and Preview Frontend
+
+```bash
+npm run build
+npm run preview
+```

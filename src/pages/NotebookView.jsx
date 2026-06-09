@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { appClient } from '@/api/appClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PageSidebar from '@/components/canvas/PageSidebar';
 import DrawingCanvas from '@/components/canvas/DrawingCanvas';
@@ -37,7 +37,7 @@ export default function NotebookView() {
   const { data: notebook, isLoading: loadingNotebook } = useQuery({
     queryKey: ['notebook', id],
     queryFn: async () => {
-      const list = await base44.entities.Notebook.filter({ id });
+      const list = await appClient.entities.Notebook.filter({ id });
       return list[0];
     },
   });
@@ -45,7 +45,7 @@ export default function NotebookView() {
   // Load pages
   const { data: pages = [], isLoading: loadingPages } = useQuery({
     queryKey: ['pages', id],
-    queryFn: () => base44.entities.Page.filter({ notebook_id: id }, 'page_order'),
+    queryFn: () => appClient.entities.Page.filter({ notebook_id: id }, 'page_order'),
   });
 
   // Auto select first page
@@ -75,7 +75,7 @@ export default function NotebookView() {
   const saveStrokes = useCallback(
     debounce(async (pageId, strokesData) => {
       setSaveStatus('saving');
-      await base44.entities.Page.update(pageId, {
+      await appClient.entities.Page.update(pageId, {
         strokes_data: JSON.stringify(strokesData),
       });
       setSaveStatus('saved');
@@ -87,7 +87,7 @@ export default function NotebookView() {
   const addPageMutation = useMutation({
     mutationFn: async () => {
       const template = notebook?.default_template || 'blank';
-      const page = await base44.entities.Page.create({
+      const page = await appClient.entities.Page.create({
         notebook_id: id,
         title: `Page ${pages.length + 1}`,
         page_order: pages.length,
@@ -96,7 +96,7 @@ export default function NotebookView() {
         text_boxes_data: '[]',
       });
       // Update page count
-      await base44.entities.Notebook.update(id, { page_count: pages.length + 1 });
+      await appClient.entities.Notebook.update(id, { page_count: pages.length + 1 });
       return page;
     },
     onSuccess: (page) => {
@@ -108,8 +108,8 @@ export default function NotebookView() {
 
   const deletePageMutation = useMutation({
     mutationFn: async (pageId) => {
-      await base44.entities.Page.delete(pageId);
-      await base44.entities.Notebook.update(id, { page_count: Math.max(0, pages.length - 1) });
+      await appClient.entities.Page.delete(pageId);
+      await appClient.entities.Notebook.update(id, { page_count: Math.max(0, pages.length - 1) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pages', id] });

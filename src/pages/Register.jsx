@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { appClient } from "@/api/appClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +28,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await base44.auth.register({ email, password });
+      await appClient.auth.register({ email, password });
       setShowOtp(true);
     } catch (err) {
       setError(err.message || "Registration failed");
@@ -41,9 +41,9 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      const result = await base44.auth.verifyOtp({ email, otpCode });
+      const result = await appClient.auth.verifyOtp({ email, otpCode });
       if (result?.access_token) {
-        base44.auth.setToken(result.access_token);
+        appClient.auth.setToken(result.access_token);
       }
       window.location.href = "/";
     } catch (err) {
@@ -56,7 +56,7 @@ export default function Register() {
   const handleResend = async () => {
     setError("");
     try {
-      await base44.auth.resendOtp(email);
+      await appClient.auth.resendOtp(email);
       toast({
         title: "Code sent",
         description: "Check your email for the new code.",
@@ -67,7 +67,20 @@ export default function Register() {
   };
 
   const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", "/");
+    appClient.auth.loginWithProvider("google", "/");
+  };
+
+  const handleContinueAsGuest = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await appClient.auth.loginViaEmailPassword("guest@leafnote.local", "guest");
+      window.location.href = "/";
+    } catch (err) {
+      setError(err.message || "Unable to continue as guest");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (showOtp) {
@@ -145,6 +158,16 @@ export default function Register() {
       >
         <GoogleIcon className="w-5 h-5 mr-2" />
         Continue with Google
+      </Button>
+
+      <Button
+        type="button"
+        variant="ghost"
+        className="w-full h-11 text-sm font-medium mb-6"
+        onClick={handleContinueAsGuest}
+        disabled={loading}
+      >
+        Continue as guest
       </Button>
 
       <div className="relative mb-6">

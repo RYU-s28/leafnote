@@ -1,19 +1,20 @@
 {
-  "name": "base44-app",
+  "name": "leafnote-app",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/src/index.js",
+    "server:dev": "node --watch server/src/index.js",
     "build": "vite build",
+    "build:pages": "vite build --base=/leafnote/",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.31",
-    "@base44/vite-plugin": "^1.0.21",
     "@hello-pangea/dnd": "^17.0.0",
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-accordion": "^1.2.3",
@@ -77,6 +78,8 @@
     "three": "^0.171.0",
     "vaul": "^1.1.2",
     "zod": "^3.24.2"
+    ,"cors": "^2.8.5"
+    ,"express": "^4.21.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
