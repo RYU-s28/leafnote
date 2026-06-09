@@ -69,8 +69,20 @@ const toError = (message, status) => {
 };
 
 const requireFirebase = () => {
+  const requiredFirebaseEnv = {
+    VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
+    VITE_FIREBASE_AUTH_DOMAIN: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  };
+  const missingFirebaseEnv = Object.entries(requiredFirebaseEnv)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
   if (!firebaseConfigured || !firebaseAuth) {
-    throw toError('Firebase web config is missing. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, and VITE_FIREBASE_PROJECT_ID.');
+    const missingMessage = missingFirebaseEnv.length
+      ? ` Missing: ${missingFirebaseEnv.join(', ')}.`
+      : '';
+    throw toError(`Firebase web config is missing.${missingMessage} If this is GitHub Pages, set matching repository secrets and redeploy.`);
   }
 };
 
